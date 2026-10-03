@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# rc: serves folders over Claude Code Remote Control, one `claude remote-control` per folder, in tmux.
+#   rc                       start what is missing, then list servers and candidate folders
+#   rc add <path or name>    serve a folder, or restart the server of a served one
+#   rc rm <name>             stop a server and forget its folder
+
+CONF=$HOME/.config/rc
+STATE=$HOME/.local/state/rc
+FOLDERS=$CONF/folders
+SELF=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")
+PAUSE=${RC_PAUSE:-60}      # tests shorten the waits
+STAGGER=${RC_STAGGER:-3}
+API=${RC_API:-https://api.anthropic.com}
+EXCLUDED=(Library Documents Desktop Downloads Pictures Movies Music)  # macOS asks before listing these
+export TMUX_TMPDIR=$STATE  # under /tmp, systemd-tmpfiles may purge the socket (tmux #4640)
+
+t() { tmux -L rc -f "$CONF/tmux.conf" "$@"; }
+
+usage() { sed -n '2,5p' "$SELF" | sed 's/^# \{0,1\}//'; }
+
+prepare() {
+  mkdir -p "$CONF" "$STATE"
+  [[ -f $CONF/tmux.conf ]] || printf 'set -g default-size 200x50\nset -g history-limit 2000\n' > "$CONF/tmux.conf"
+}
+
+main() {
+  set -eu
+  prepare
+  case ${1:-} in
+    "") cmd_default ;;
+    add) shift; cmd_add "$@" ;;
+    rm) shift; cmd_rm "$@" ;;
+    _loop) shift; serve_loop "$@" ;;
+    -h | --help) usage ;;
+    *) usage >&2; return 2 ;;
+  esac
+}
+
+[[ ${BASH_SOURCE[0]} != "$0" ]] || main "$@"

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Fake notifier for tests.
+echo "$*" >> "${FAKE_DIR:-/tmp/fake-claude}/notifications"

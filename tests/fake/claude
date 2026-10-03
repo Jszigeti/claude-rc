@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Fake claude for tests: auth status, and a remote-control server that can ask for trust.
+D=${FAKE_DIR:-/tmp/fake-claude}
+mkdir -p "$D"
+case "$1 ${2:-}" in
+  "auth status")
+    if [[ -e $D/logged-out ]]; then
+      echo '{"loggedIn": false, "authMethod": "none"}'
+      exit 1
+    fi
+    echo '{"loggedIn": true, "authMethod": "claude.ai"}'
+    ;;
+  remote-control*)
+    name=$3
+    if [[ -e $D/ask-trust ]]; then
+      printf 'Trust %s? [y/N] ' "$PWD"
+      read -r answer
+      [[ $answer == y ]] || exit 1
+      echo trusted >> "$D/trusted-$name"
+    fi
+    echo started >> "$D/started-$name"
+    echo "·✔︎· Connected · $name"
+    until [[ -e $D/stop-$name ]]; do sleep 0.2; done
+    rm -f "$D/stop-$name"
+    exit 3
+    ;;
+  *)
+    echo "fake claude: $*" >&2
+    exit 2
+    ;;
+esac
