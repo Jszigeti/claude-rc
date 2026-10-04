@@ -101,7 +101,7 @@ render_rows() { # draws the screen of choose_folders, whose locals it reads
       *) printf '  %s%s %-24s %s\n' "$c" "$(box "${CHECKED[${rows[$i]}]}")" "$(short "${LIST[${rows[$i]}]}")" "$(paint 2 "${ages[${rows[$i]}]:-}")" ;;
     esac
   done
-  printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there. ~160 MB of RAM each.')" \
+  printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there. About 160 MB of RAM each.')" \
     "$(paint 2 '↑↓ move · space select · enter confirm · q quit')"
 }
 
@@ -275,10 +275,10 @@ report() {
   else say "$(paint 31 ×) claude-rc.service inactive: journalctl --user -u claude-rc"
   fi
   [[ $OS != wsl ]] || say "$(paint 33 !) To check: close your WSL terminals, wait 2 min, and see whether your folders stay online."
-  ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "$(paint 33 !) A served folder is under /mnt: WSL is slow there, keep your projects in ~"
+  ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "$(paint 33 !) A served folder is under /mnt: WSL is slow there, keep your projects in your Linux home folder"
   say "" "Done. Your folders are in the Claude app, Code tab." \
     "  rc              see their state" \
-    "  rc add <path>   serve another folder"
+    "  rc add <name>   serve another folder"
 }
 
 uninstall() {

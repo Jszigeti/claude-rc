@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # rc: serves folders over Claude Code Remote Control, one `claude remote-control` per folder, in tmux.
 #   rc                       start what is missing, then list servers and candidate folders
-#   rc add <path or name>    serve a folder, or restart the server of a served one
-#   rc rm <name>             stop a server and forget its folder
+#   rc add <folder or name>  serve a folder (a path, or just its name), or restart a served one
+#   rc rm <name or folder>   stop a server and forget its folder
 
 CONF=$HOME/.config/rc
 STATE=$HOME/.local/state/rc
@@ -173,18 +173,25 @@ serve_loop() {
   done
 }
 
+find_folder() { # a path, a folder here or in ~, or a recent folder with that name: no ~ to type on a phone
+  local p e
+  for p in "$1" "$HOME/$1"; do [[ -d $p ]] && { (cd "$p" && pwd); return 0; }; done
+  while IFS=$'\t' read -r e p; do [[ ${p##*/} == "$1" ]] && { echo "$p"; return 0; }; done < <(candidates)
+  return 1
+}
+
 cmd_add() {
   [[ $# -eq 1 ]] || { usage >&2; return 2; }
   local name path
   if path=$(path_of "$1"); then
     name=$1
   else
-    path=$(cd "$1" 2>/dev/null && pwd) || { echo "rc: no such folder: $1" >&2; return 1; }
+    path=$(find_folder "$1") || { echo "rc: no folder $1 here, in your home folder or among your recent folders" >&2; return 1; }
     name=$(name_of_path "$path") || { name=$(free_name "$path"); echo "$name=$path" >> "$FOLDERS"; }
   fi
   stop "$name"
   start "$name" "$path"
-  echo "✓ $name served from $(short "$path"), open it from the Claude app"
+  echo "✓ $name is ready in the Claude app, Code tab"
 }
 
 wait_network() {
@@ -219,8 +226,8 @@ list_all() {
   l=$(candidates | head -5)
   [[ -n $l ]] || return 0
   printf '\nUsed recently, not served\n'
-  while IFS=$'\t' read -r e p; do printf '  %-36s used %s\n' "$(short "$p")" "$(age "$e")"; done <<< "$l"
-  echo '  (use "rc add <path>" to serve one)'
+  while IFS=$'\t' read -r e p; do printf '  %-24s %-28s used %s\n' "${p##*/}" "$(short "$p")" "$(age "$e")"; done <<< "$l"
+  echo '  (use "rc add <name>" to serve one)'
 }
 
 cmd_default() {
@@ -237,13 +244,16 @@ cmd_default() {
 
 cmd_rm() {
   [[ $# -eq 1 ]] || { usage >&2; return 2; }
-  [[ $1 != home ]] || { echo "rc: home is your way in from the phone; edit $FOLDERS to remove it" >&2; return 1; }
-  path_of "$1" >/dev/null || { echo "rc: no server named $1" >&2; return 1; }
-  stop "$1"
-  grep -v "^$1=" "$FOLDERS" > "$FOLDERS.tmp" || true
+  local name=$1 path
+  if ! path_of "$name" >/dev/null; then  # a folder name or path, like rc add
+    path=$(find_folder "$1") && name=$(name_of_path "$path") || { echo "rc: no server for $1" >&2; return 1; }
+  fi
+  [[ $name != home ]] || { echo "rc: home is your way in from the phone; edit $FOLDERS to remove it" >&2; return 1; }
+  stop "$name"
+  grep -v "^$name=" "$FOLDERS" > "$FOLDERS.tmp" || true
   mv "$FOLDERS.tmp" "$FOLDERS"
-  rm -f "$STATE/$1"
-  echo "✓ $1 removed"
+  rm -f "$STATE/$name"
+  echo "✓ $name removed"
 }
 
 main() {

@@ -3,7 +3,7 @@ load helpers
 @test "an unknown command prints the usage and fails" {
   run "$RC" nope
   [ "$status" -eq 2 ]
-  grep -q "rc add <path or name>" <<< "$output"
+  grep -q "rc add <folder or name>" <<< "$output"
 }
 
 @test "name_for: ~ is home, other folders are lowercased with dashes" {
@@ -80,8 +80,8 @@ load helpers
   sleep 1
   run "$RC"
   grep -Eq "✓ zz-a +~/zz-a +online" <<< "$output"
-  grep -Eq "~/zz-b +used" <<< "$output"
-  grep -q '(use "rc add <path>" to serve one)' <<< "$output"
+  grep -Eq "zz-b +~/zz-b +used" <<< "$output"
+  grep -q '(use "rc add <name>" to serve one)' <<< "$output"
 }
 
 @test "rc add <name> restarts a served folder" {
@@ -165,4 +165,28 @@ load helpers
   sleep 2
   run "$RC"
   grep -Eq "! zz-a +~/zz-a +waiting for an answer" <<< "$output"
+}
+
+@test "rc add takes a bare folder name, in ~ or among recent folders" {
+  mkdir -p "$HOME/zz-near" "$HOME/deep/zz-far"
+  history "$HOME/deep/zz-far" 202601010000
+  cd /
+  run "$RC" add zz-near
+  [ "$status" -eq 0 ]
+  run "$RC" add zz-far
+  [ "$status" -eq 0 ]
+  grep -qx "zz-near=$HOME/zz-near" "$HOME/.config/rc/folders"
+  grep -qx "zz-far=$HOME/deep/zz-far" "$HOME/.config/rc/folders"
+  run "$RC" add zz-nowhere
+  [ "$status" -eq 1 ]
+}
+
+@test "rc rm also takes the folder name or path" {
+  mkdir -p "$HOME/Zz-Upper"
+  "$RC" add "$HOME/Zz-Upper"
+  wait_for launches zz-upper 1
+  run "$RC" rm Zz-Upper
+  [ "$status" -eq 0 ]
+  run grep -q zz-upper "$HOME/.config/rc/folders"
+  [ "$status" -eq 1 ]
 }
