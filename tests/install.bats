@@ -40,3 +40,22 @@ setup_file() { export RC_SOURCE="$BATS_TEST_DIRNAME/.." RC_SKIP_STARTER=1 RC_TTY
   [ "$status" -eq 0 ]
   [ "$(cat "$HOME/.config/rc/folders")" = "$(printf '%s\n' "home=$HOME" "zz-a=$HOME/zz-a")" ]
 }
+
+@test "the report lists the served folders, and --uninstall keeps the folders file" {
+  run bash "$RC_SOURCE/install.sh"
+  [ "$status" -eq 0 ]
+  grep -q Served <<< "$output"
+  run bash "$RC_SOURCE/install.sh" --uninstall
+  [ "$status" -eq 0 ]
+  [ ! -e "$HOME/.local/bin/rc" ]
+  [ ! -e "$HOME/.local/state/rc" ]
+  [ "$(cat "$HOME/.config/rc/folders")" = "home=$HOME" ]
+}
+
+@test "unchecking start at login says how to start by hand" {
+  # down twice to "start at login", space, enter
+  printf '\033[B\033[B \n' > "$HOME/keys"
+  RC_TTY=$HOME/keys run bash "$RC_SOURCE/install.sh"
+  [ "$status" -eq 0 ]
+  grep -q "run rc after each login" <<< "$output"
+}

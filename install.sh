@@ -172,11 +172,110 @@ stop_unchecked() { # a rerun can uncheck a folder: stop its server
   for n in $(t ls -F '#S' 2>/dev/null); do path_of "$n" >/dev/null || stop "$n"; done
 }
 
+service_path() { # launchd and systemd do not read the shell config
+  local c d=$BIN
+  for c in claude tmux; do d=$d:$(dirname "$(command -v "$c")"); done
+  echo "$d:/usr/bin:/bin:/usr/sbin:/sbin"
+}
+
+starter_macos() {
+  act mkdir -p "$STATE"
+  write_file "$PLIST" "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key><array><string>$BIN/rc</string></array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>$(service_path)</string>
+    <key>HOME</key><string>$HOME</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>AbandonProcessGroup</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardOutPath</key><string>$STATE/up.log</string>
+  <key>StandardErrorPath</key><string>$STATE/up.log</string>
+</dict>
+</plist>"
+  act launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  act launchctl bootstrap "gui/$(id -u)" "$PLIST"
+}
+
+starter_linux() {
+  write_file "$UNIT" "[Unit]
+Description=rc: Claude Code Remote Control servers
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+Environment=PATH=$(service_path)
+Environment=TMUX_TMPDIR=$STATE
+ExecStart=$BIN/rc
+ExecStop=$(command -v tmux) -L rc kill-server
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target"
+  act systemctl --user daemon-reload
+  act systemctl --user enable --now claude-rc.service
+  act loginctl enable-linger "$(id -un)" 2>/dev/null || say "⚠ linger refused: the servers start at your next login, not at boot"
+}
+
+starter_wsl() { # unverified: no WSL in CI
+  if [[ ! -d /run/systemd/system ]]; then
+    grep -qs '^systemd=true' /etc/wsl.conf || act sudo sh -c 'printf "\n[boot]\nsystemd=true\n" >> /etc/wsl.conf'
+    die "systemd is now enabled. In PowerShell: wsl.exe --shutdown, then rerun this installer"
+  fi
+  starter_linux
+  # systemd does not keep WSL alive: a Windows process attached to the distro does (WSL #13416)
+  act powershell.exe -NoProfile -Command "Register-ScheduledTask -TaskName claude-rc -Force -Trigger (New-ScheduledTaskTrigger -AtLogOn -User \$env:USERNAME) -Action (New-ScheduledTaskAction -Execute wsl.exe -Argument '-d $WSL_DISTRO_NAME -e sleep infinity') -Settings (New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries) | Out-Null"
+}
+
+remove_starter() {
+  [[ ${RC_SKIP_STARTER:-} != 1 ]] || return 0  # tests stay away from the real launchd and systemd
+  case $OS in
+    macos) act launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true; act rm -f "$PLIST" ;;
+    *)
+      act systemctl --user disable --now claude-rc.service 2>/dev/null || true
+      act rm -f "$UNIT"
+      [[ $OS != wsl ]] || act powershell.exe -NoProfile -Command "Unregister-ScheduledTask -TaskName claude-rc -Confirm:\$false" 2>/dev/null || true
+      ;;
+  esac
+}
+
+report() {
+  $DRY && return 0
+  say ""
+  "$BIN/rc" || true
+  say ""
+  if [[ $AT_LOGIN != x ]]; then say "Not started at login: run rc after each login."
+  elif [[ ${RC_SKIP_STARTER:-} == 1 ]]; then say "starter not installed (RC_SKIP_STARTER=1)"
+  elif [[ $OS == macos ]]; then
+    if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then say "✓ starts at login ($LABEL)"; else say "✗ LaunchAgent $LABEL missing"; fi
+  elif systemctl --user is-active --quiet claude-rc.service; then say "✓ starts at boot (claude-rc.service)"
+  else say "✗ claude-rc.service inactive: journalctl --user -u claude-rc"
+  fi
+  say "" "In the Claude app, Code tab, your folders show a green dot." \
+    "In a session, type the exact command: rc, rc add <path>, rc rm <name>."
+  [[ $OS != wsl ]] || say "To check: close your WSL terminals, wait 2 min, and see whether your folders stay online."
+  ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "⚠ a served folder is under /mnt: WSL is slow there, keep your projects in ~"
+}
+
+uninstall() {
+  remove_starter
+  act env TMUX_TMPDIR="$HOME/.local/state/rc" tmux -L rc kill-server 2>/dev/null || true
+  act rm -f "$BIN/rc"
+  [[ ! -e $HOME/.local/state/rc ]] || act rm -r "$HOME/.local/state/rc"
+  say "✓ rc uninstalled. Your folders stay listed in $HOME/.config/rc/folders."
+}
+
 install_all() {
   set -eu
   case ${1:-} in
     "") ;;
     --dry-run) DRY=true ;;
+    --uninstall) detect_os; uninstall; return 0 ;;
     *) die "usage: install.sh [--dry-run | --uninstall]" ;;
   esac
   detect_os
@@ -188,6 +287,12 @@ install_all() {
   choose_folders
   write_folders
   stop_unchecked
+  if [[ $AT_LOGIN == x ]]; then
+    [[ ${RC_SKIP_STARTER:-} == 1 ]] || "starter_$OS"  # tests stay away from the real launchd and systemd
+  else
+    remove_starter
+  fi
+  report
 }
 
 install_all "$@"
