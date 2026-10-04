@@ -21,7 +21,7 @@ load helpers
   [ "$(free_name /b/api)" = api-2 ]
 }
 
-@test "candidates: history first, then git repos, without served, vanished or private folders" {
+@test "candidates: history and git repos newest first, without served, vanished or private folders" {
   source "$RC"
   prepare
   mkdir -p "$HOME/zz-alpha" "$HOME/My Proj.v2" "$HOME/zz-served" "$HOME/Documents/secret" "$HOME/zz-beta"
@@ -35,7 +35,7 @@ load helpers
   echo "zz-served=$HOME/zz-served" > "$FOLDERS"
   run candidates
   [ "$status" -eq 0 ]
-  [ "$(cut -f2 <<< "$output")" = "$(printf '%s\n' "$HOME/My Proj.v2" "$HOME/zz-alpha" "$HOME/zz-beta")" ]
+  [ "$(cut -f2 <<< "$output")" = "$(printf '%s\n' "$HOME/zz-beta" "$HOME/My Proj.v2" "$HOME/zz-alpha")" ]
 }
 
 @test "age and short format ages and paths" {

@@ -81,7 +81,7 @@ excluded() { # $1: a folder name right under ~
   return 1
 }
 
-candidates() { # "epoch<TAB>path": Claude Code history under ~ first, then git repos right under ~
+candidates() { # "epoch<TAB>path": folders from Claude Code history under ~ and git repos right under ~, newest first
   local d enc top f p e h=${HOME//[^A-Za-z0-9]/-}
   {
     for d in "$HOME"/.claude/projects/*/; do
@@ -97,7 +97,7 @@ candidates() { # "epoch<TAB>path": Claude Code history under ~ first, then git r
       p=${d%/}
       excluded "${p##*/}" || [[ ! -d $p/.git ]] || printf '2\t%s\t%s\n' "$(git -C "$p" log -1 --format=%ct 2>/dev/null || echo 0)" "$p"
     done
-  } | sort -t $'\t' -k1,1n -k2,2nr | awk -F '\t' '!seen[$3]++ { print $2 "\t" $3 }' |
+  } | sort -t $'\t' -k2,2nr | awk -F '\t' '!seen[$3]++ { print $2 "\t" $3 }' |
     while IFS=$'\t' read -r e p; do name_of_path "$p" >/dev/null || printf '%s\t%s\n' "$e" "$p"; done
 }
 
