@@ -24,13 +24,13 @@ write_file() { # file, content
 
 detect_os() {
   case $(uname -s) in
-    Darwin) OS=macos ;;
+    Darwin) OS=macos OS_NAME=macOS WHEN="When this Mac restarts" START_LABEL="Start my servers when I log in" START_HINT="(adds a Login Item)" ;;
     Linux)
       if grep -qi microsoft /proc/version 2>/dev/null; then
         [[ -n ${WSL_INTEROP:-} ]] || die "WSL1 is not supported: switch your distro to WSL2 (wsl --set-version <distro> 2)"
-        OS=wsl
+        OS=wsl OS_NAME=WSL WHEN="When Windows restarts" START_LABEL="Start my servers when I log in to Windows" START_HINT="(systemd and a scheduled task)"
       else
-        OS=linux
+        OS=linux OS_NAME=Linux WHEN="When this machine restarts" START_LABEL="Start my servers when it boots" START_HINT="(systemd user service)"
       fi
       ;;
     *) die "native Windows is not supported: install WSL2, then rerun this installer in your distro" ;;
@@ -89,31 +89,44 @@ install_rc() { # sets RC_LOCAL, the rc file whose helpers the installer reuses
 }
 
 render_rows() { # draws the screen of choose_folders, whose locals it reads
-  local i p
-  printf 'rc · install on %s\n↑↓ move · space toggle · enter install · q quit\n\n' "$OS"
+  local i c
+  printf 'rc · install on %s\n\n' "$OS_NAME"
+  printf '%s Which folders should the Claude app reach?\n' "$(paint 36 ◆)"
   for i in "${!rows[@]}"; do
-    p=" "; (( i == cur )) && p="›"
+    c="  "; (( i == cur )) && c="$(paint 36 ›) "
     case ${rows[$i]} in
-      more) printf '%s     show %d more\n' "$p" "${#rest[@]}" ;;
-      add) printf '%s     add a path\n\n' "$p" ;;
-      login) printf '%s [%s] start at login\n' "$p" "$AT_LOGIN" ;;
-      *) printf '%s [%s] %-28s %s\n' "$p" "${CHECKED[${rows[$i]}]}" "$(short "${LIST[${rows[$i]}]}")" "${ages[${rows[$i]}]:-}" ;;
+      more) printf '  %s  show %d more\n' "$c" "${#rest[@]}" ;;
+      add) printf '  %s+ add a folder…\n\n%s %s\n' "$c" "$(paint 36 ◆)" "$WHEN" ;;
+      login) printf '  %s%s %s  %s\n' "$c" "$(box "$AT_LOGIN")" "$START_LABEL" "$(paint 2 "$START_HINT")" ;;
+      *) printf '  %s%s %-24s %s\n' "$c" "$(box "${CHECKED[${rows[$i]}]}")" "$(short "${LIST[${rows[$i]}]}")" "$(paint 2 "${ages[${rows[$i]}]:-}")" ;;
     esac
   done
-  printf '\nEach checked folder: ~160 MB of RAM.\nClaude can read, edit and run commands in it.\n'
+  printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there. ~160 MB of RAM each.')" \
+    "$(paint 2 '↑↓ move · space select · enter confirm · q quit')"
+}
+
+box() { if [[ $1 == x ]]; then paint 32 ◼; else printf '◻'; fi; }
+
+summarize() { # what was chosen, once the screen is gone
+  local i names=()
+  for i in "${!LIST[@]}"; do [[ ${CHECKED[$i]} != x ]] || names+=("$(short "${LIST[$i]}")"); done
+  if (( ${#names[@]} )); then say "$(paint 32 ◇) Folders: $(printf '%s, ' "${names[@]}" | sed 's/, $//')"
+  else say "$(paint 32 ◇) Folders: none"
+  fi
+  if [[ $AT_LOGIN == x ]]; then say "$(paint 32 ◇) $START_LABEL: yes"; else say "$(paint 32 ◇) $START_LABEL: no"; fi
 }
 
 choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $TTY, keeps the defaults without one
   local cands=() ages=() rest=() rows=() cur=0 drawn=0 key seq i p e l
-  LIST=("$HOME"); CHECKED=(x); ages=(home); AT_LOGIN=x
+  LIST=("$HOME"); CHECKED=(x); ages=("your home folder"); AT_LOGIN=x
   while IFS= read -r l; do
     p=${l#*=}
     [[ $p == "$HOME" ]] && continue
-    LIST+=("$p"); CHECKED+=(x); ages+=(served)
+    LIST+=("$p"); CHECKED+=(x); ages+=("served now")
   done < <(served)
   while IFS=$'\t' read -r e p; do
     [[ $p == "$HOME" ]] && continue
-    cands+=("$p"); ages+=("$(age "$e")")
+    cands+=("$p"); ages+=("used $(age "$e")")
   done < <(candidates)
   for i in "${!cands[@]}"; do
     if (( i < 5 )); then LIST+=("${cands[$i]}"); CHECKED+=(" "); else rest+=("${cands[$i]}"); fi
@@ -143,7 +156,7 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
             printf 'Path: '
             IFS= read -r -u 3 p || p=""
             drawn=$((drawn + 1))
-            if p=$(cd "${p/#\~/$HOME}" 2>/dev/null && pwd); then LIST+=("$p"); CHECKED+=(x); ages+=(added); fi
+            if p=$(cd "${p/#\~/$HOME}" 2>/dev/null && pwd); then LIST+=("$p"); CHECKED+=(x); ages+=("just added"); fi
             ;;
           login) if [[ $AT_LOGIN == x ]]; then AT_LOGIN=" "; else AT_LOGIN=x; fi ;;
           *) i=${rows[$cur]}; if [[ ${CHECKED[$i]} == x ]]; then CHECKED[$i]=" "; else CHECKED[$i]=x; fi ;;
@@ -153,6 +166,7 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
       q) die "install cancelled" ;;
     esac
   done
+  (( drawn == 0 )) || printf '\033[%dA\033[J' "$drawn"  # the summary replaces the screen, as clack does
   exec 3<&-
 }
 
@@ -251,17 +265,20 @@ report() {
   say ""
   "$BIN/rc" || true
   say ""
-  if [[ $AT_LOGIN != x ]]; then say "Not started at login: run rc after each login."
+  if [[ $AT_LOGIN != x ]]; then say "$(paint 33 !) Your servers start only when you type rc."
   elif [[ ${RC_SKIP_STARTER:-} == 1 ]]; then say "starter not installed (RC_SKIP_STARTER=1)"
   elif [[ $OS == macos ]]; then
-    if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then say "✓ starts at login ($LABEL)"; else say "✗ LaunchAgent $LABEL missing"; fi
-  elif systemctl --user is-active --quiet claude-rc.service; then say "✓ starts at boot (claude-rc.service)"
-  else say "✗ claude-rc.service inactive: journalctl --user -u claude-rc"
+    if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then say "$(paint 32 ✓) Login Item added ($LABEL)"
+    else say "$(paint 31 ×) Login Item missing: launchctl print gui/$(id -u)/$LABEL"
+    fi
+  elif systemctl --user is-active --quiet claude-rc.service; then say "$(paint 32 ✓) claude-rc.service enabled"
+  else say "$(paint 31 ×) claude-rc.service inactive: journalctl --user -u claude-rc"
   fi
-  say "" "In the Claude app, Code tab, your folders show a green dot." \
-    "In a session, type the exact command: rc, rc add <path>, rc rm <name>."
-  [[ $OS != wsl ]] || say "To check: close your WSL terminals, wait 2 min, and see whether your folders stay online."
-  ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "⚠ a served folder is under /mnt: WSL is slow there, keep your projects in ~"
+  [[ $OS != wsl ]] || say "$(paint 33 !) To check: close your WSL terminals, wait 2 min, and see whether your folders stay online."
+  ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "$(paint 33 !) A served folder is under /mnt: WSL is slow there, keep your projects in ~"
+  say "" "Done. Your folders are in the Claude app, Code tab." \
+    "  rc              see their state" \
+    "  rc add <path>   serve another folder"
 }
 
 uninstall() {
@@ -287,6 +304,7 @@ install_all() {
   # shellcheck source=rc
   source "$RC_LOCAL"  # rc's helpers: folders file, names, candidates, ages, tmux
   choose_folders
+  summarize
   write_folders
   stop_unchecked
   if [[ $AT_LOGIN == x ]]; then

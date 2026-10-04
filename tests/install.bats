@@ -57,5 +57,5 @@ setup_file() { export RC_SOURCE="$BATS_TEST_DIRNAME/.." RC_SKIP_STARTER=1 RC_TTY
   printf '\033[B\033[B \n' > "$HOME/keys"
   RC_TTY=$HOME/keys run bash "$RC_SOURCE/install.sh"
   [ "$status" -eq 0 ]
-  grep -q "run rc after each login" <<< "$output"
+  grep -q "start only when you type rc" <<< "$output"
 }
