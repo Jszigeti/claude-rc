@@ -133,6 +133,9 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
     if (( i < 5 )); then LIST+=("${cands[$i]}"); CHECKED+=(" "); else rest+=("${cands[$i]}"); fi
   done
   { exec 3< "$TTY"; } 2>/dev/null || return 0  # no terminal: keep the defaults
+  # bash only reads key by key from its own stdin, which curl | bash fills with the script: set the terminal ourselves
+  KEYS=$(stty -g <&3 2>/dev/null) || KEYS=""
+  [[ -z $KEYS ]] || { stty -icanon -echo min 1 <&3; trap 'stty "$KEYS" <&3' EXIT; }
   while :; do
     rows=()  # one entry per selectable row: a folder index, more, add or login
     for i in "${!LIST[@]}"; do rows+=("$i"); done
@@ -155,7 +158,9 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
           more) LIST+=("${rest[@]}"); for p in "${rest[@]}"; do CHECKED+=(" "); done; rest=() ;;
           add)
             printf 'Path: '
+            [[ -z $KEYS ]] || stty "$KEYS" <&3
             IFS= read -r -u 3 p || p=""
+            [[ -z $KEYS ]] || stty -icanon -echo min 1 <&3
             drawn=$((drawn + 1))
             if p=$(cd "${p/#\~/$HOME}" 2>/dev/null && pwd); then LIST+=("$p"); CHECKED+=(x); ages+=("just added"); fi
             ;;
@@ -168,6 +173,7 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
     esac
   done
   (( drawn == 0 )) || printf '\033[%dA\033[J' "$drawn"  # the summary replaces the screen, as clack does
+  [[ -z $KEYS ]] || { stty "$KEYS" <&3; trap - EXIT; }
   exec 3<&-
 }
 
