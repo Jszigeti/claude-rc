@@ -200,3 +200,13 @@ load helpers
   run grep -q "It comes with a first session" <<< "$output"
   [ "$status" -eq 1 ]
 }
+
+@test "a server offline too long is stopped by a signal before Claude Code gives up" {
+  export RC_OFFLINE_LIMIT=1 RC_GUARD_EVERY=0.5
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  touch "$FAKE_DIR/offline-zz-a"
+  wait_for test -s "$FAKE_DIR/signals-zz-a"
+  wait_for launches zz-a 2
+}
