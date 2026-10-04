@@ -90,16 +90,25 @@ install_rc() { # sets RC_LOCAL, the rc file whose helpers the installer reuses
 }
 
 render_rows() { # draws the screen of choose_folders, whose locals it reads
-  local i c
+  local i c p
   printf 'rc · install on %s\n\n' "$OS_NAME"
   printf '%s Which folders should the Claude app reach?\n' "$(paint 36 ◆)"
+  (( top == 0 )) || printf '      %s\n' "$(paint 2 "↑ $top more")"
   for i in "${!rows[@]}"; do
+    if (( i < ${#LIST[@]} )) && (( i < top || i >= top + fit )); then
+      (( i != top + fit )) || printf '      %s\n' "$(paint 2 "↓ $(( ${#LIST[@]} - top - fit )) more")"
+      continue
+    fi
     c="  "; (( i == cur )) && c="$(paint 36 ›) "
     case ${rows[$i]} in
       more) printf '  %s  show %d more\n' "$c" "${#rest[@]}" ;;
       add) printf '  %s+ add a folder…\n\n%s %s\n' "$c" "$(paint 36 ◆)" "$WHEN" ;;
       login) printf '  %s%s %s  %s\n' "$c" "$(box "$AT_LOGIN")" "$START_LABEL" "$(paint 2 "$START_HINT")" ;;
-      *) printf '  %s%s %-24s %s\n' "$c" "$(box "${CHECKED[${rows[$i]}]}")" "$(short "${LIST[${rows[$i]}]}")" "$(paint 2 "${ages[${rows[$i]}]:-}")" ;;
+      *)
+        p=$(short "${LIST[${rows[$i]}]}")
+        (( ${#p} <= 36 )) || p="…${p: -35}"  # a wrapped line breaks the redraw, which counts lines
+        printf '  %s%s %-36s %s\n' "$c" "$(box "${CHECKED[${rows[$i]}]}")" "$p" "$(paint 2 "${ages[${rows[$i]}]:-}")"
+        ;;
     esac
   done
   printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there. About 160 MB of RAM each.')" \
@@ -118,7 +127,7 @@ summarize() { # what was chosen, once the screen is gone
 }
 
 choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $TTY, keeps the defaults without one
-  local cands=() ages=() rest=() rows=() cur=0 drawn=0 key seq i p e l
+  local cands=() ages=() rest=() rows=() cur=0 drawn=0 top=0 fit=1000 key seq i p e l
   LIST=("$HOME"); CHECKED=(x); ages=("your home folder"); AT_LOGIN=x
   while IFS= read -r l; do
     p=${l#*=}
@@ -135,7 +144,8 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
   { exec 3< "$TTY"; } 2>/dev/null || return 0  # no terminal: keep the defaults
   # bash only reads key by key from its own stdin, which curl | bash fills with the script: set the terminal ourselves
   KEYS=$(stty -g <&3 2>/dev/null) || KEYS=""
-  [[ -z $KEYS ]] || { stty -icanon -echo min 1 <&3; trap 'stty "$KEYS" <&3' EXIT; }
+  [[ -z $KEYS ]] || { stty -icanon -echo min 1 <&3; trap 'stty "$KEYS" <&3; printf "\033[?25h"' EXIT; }
+  printf '\033[?25l'  # no blinking cursor over the list
   while :; do
     rows=()  # one entry per selectable row: a folder index, more, add or login
     for i in "${!LIST[@]}"; do rows+=("$i"); done
@@ -143,9 +153,16 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
     rows+=(add login)
     (( cur < 0 )) && cur=0
     (( cur >= ${#rows[@]} )) && cur=$(( ${#rows[@]} - 1 ))
-    (( drawn )) && printf '\033[%dA\033[J' "$drawn"
-    l=$(render_rows)
-    printf '%s\n' "$l"
+    l=$(stty size <&3 2>/dev/null) && fit=$(( ${l%% *} - 16 ))  # folder rows that fit, read at each key since the window can be resized
+    (( fit >= 3 )) || fit=3
+    if (( cur < ${#LIST[@]} )); then  # keep the cursor inside the visible slice of folders
+      (( cur >= top )) || top=$cur
+      (( cur < top + fit )) || top=$(( cur - fit + 1 ))
+    fi
+    l=$(render_rows)  # built before touching the screen, then written over the old lines: no blank frame
+    (( drawn == 0 )) || printf '\033[%dA' "$drawn"
+    printf '%s\n' "$l" | sed $'s/$/\033[K/'
+    printf '\033[J'
     drawn=$(( $(printf '%s\n' "$l" | wc -l) ))
     IFS= read -rsn1 -u 3 key || key=""
     case $key in
@@ -177,6 +194,7 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
   done
   (( drawn == 0 )) || printf '\033[%dA\033[J' "$drawn"  # the summary replaces the screen, as clack does
   [[ -z $KEYS ]] || { stty "$KEYS" <&3; trap - EXIT; }
+  printf '\033[?25h'
   exec 3<&-
 }
 
