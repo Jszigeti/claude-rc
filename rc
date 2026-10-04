@@ -23,6 +23,35 @@ prepare() {
   [[ -f $CONF/tmux.conf ]] || printf 'set -g default-size 200x50\nset -g history-limit 2000\n' > "$CONF/tmux.conf"
 }
 
+# --- folders: one "name=absolute path" line per served folder
+
+served() { [[ -f $FOLDERS ]] && grep -v '^[[:space:]]*$' "$FOLDERS" || true; }
+
+path_of() {
+  local l
+  while IFS= read -r l; do [[ ${l%%=*} == "$1" ]] && { echo "${l#*=}"; return 0; }; done < <(served)
+  return 1
+}
+
+name_of_path() {
+  local l
+  while IFS= read -r l; do [[ ${l#*=} == "$1" ]] && { echo "${l%%=*}"; return 0; }; done < <(served)
+  return 1
+}
+
+name_for() { # the name shown in the app: ~ is home, otherwise the folder name in lowercase with dashes
+  [[ $1 == "$HOME" ]] && { echo home; return; }
+  basename "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//'
+}
+
+free_name() {
+  local base n i=2
+  base=$(name_for "$1")
+  n=$base
+  while path_of "$n" >/dev/null; do n=$base-$i; i=$((i + 1)); done
+  echo "$n"
+}
+
 main() {
   set -eu
   prepare
