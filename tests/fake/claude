@@ -23,6 +23,7 @@ case "$1 ${2:-}" in
       read -r answer
     fi
     echo started >> "$D/started-$name"
+    echo "$*" > "$D/args-$name"
     echo "·✔︎· Connected · $name"
     until [[ -e $D/stop-$name ]]; do sleep 0.2; done
     rm -f "$D/stop-$name"

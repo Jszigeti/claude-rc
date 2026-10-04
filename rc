@@ -145,7 +145,7 @@ notify() {
 }
 
 answer_prompts() { # answers y to the trust and consent prompts until connected; only listed folders get a serve_loop
-  until pane "$1" | grep -q Connected; do
+  until pane "$1" | grep -qE "Ready|Connected"; do
     last_line "$1" | grep -qE 'Trust .*\[y/N\] *$|Enable Remote Control\? \(y/n\) *$' &&
       t send-keys -t "=$1:" y Enter
     sleep 1
@@ -160,7 +160,7 @@ serve_loop() {
       rm -f "$STATE/login-notified"
       clear  # the previous run's pane would read as connected
       answer_prompts "$name" &
-      claude remote-control --name "$name" --spawn same-dir || true
+      claude remote-control --name "$name" --spawn same-dir || true  # its own session keeps the environment, so open sessions survive a restart
       kill "$!" 2>/dev/null || true
       restarts=$((restarts + 1))
       echo "$restarts" > "$STATE/$name"
