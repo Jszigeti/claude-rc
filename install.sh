@@ -111,7 +111,7 @@ render_rows() { # draws the screen of choose_folders, whose locals it reads
         ;;
     esac
   done
-  printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there. About 160 MB of RAM each.')" \
+  printf '\n%s\n%s\n' "$(paint 2 'Claude can read, edit and run commands there.')" \
     "$(paint 2 '↑↓ move · space select · enter confirm · q quit')"
 }
 

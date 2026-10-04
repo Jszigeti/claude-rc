@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 584" font-family="'SF Mono', Menlo, Consolas, monospace" font-size="13">
+  <rect width="760" height="584" rx="10" fill="#161b22"/>
+  <rect width="760" height="34" rx="10" fill="#21262d"/>
+  <rect y="24" width="760" height="10" fill="#21262d"/>
+  <circle cx="20" cy="17" r="6" fill="#ff5f57"/>
+  <circle cx="40" cy="17" r="6" fill="#febc2e"/>
+  <circle cx="60" cy="17" r="6" fill="#28c840"/>
+  <text x="380" y="21" text-anchor="middle" fill="#8b949e" font-size="12">rc</text>
+
+  <g fill="#c9d1d9">
+    <text x="24" y="62"><tspan fill="#7ee787">$</tspan> curl -fsSL https://raw.githubusercontent.com/Jszigeti/claude-rc/v0.1.0/install.sh | bash</text>
+    <text x="24" y="92">rc · install on macOS</text>
+    <text x="24" y="122"><tspan fill="#39c5cf">◆</tspan> Which folders should the Claude app reach?</text>
+    <text x="56" y="142"><tspan fill="#3fb950">◼</tspan></text>
+    <text x="76" y="142">~</text>
+    <text x="290" y="142" fill="#8b949e">your home folder</text>
+    <text x="40" y="162" fill="#39c5cf">›</text>
+    <text x="56" y="162"><tspan fill="#3fb950">◼</tspan></text>
+    <text x="76" y="162">~/api</text>
+    <text x="290" y="162" fill="#8b949e">used 5 min ago</text>
+    <text x="56" y="182">◻</text>
+    <text x="76" y="182">~/web</text>
+    <text x="290" y="182" fill="#8b949e">used yesterday</text>
+    <text x="56" y="202"><tspan fill="#3fb950">◼</tspan></text>
+    <text x="76" y="202">~/notes</text>
+    <text x="290" y="202" fill="#8b949e">used 3 days ago</text>
+    <text x="56" y="222">+ add a folder…</text>
+    <text x="24" y="252"><tspan fill="#39c5cf">◆</tspan> When this Mac restarts</text>
+    <text x="56" y="272"><tspan fill="#3fb950">◼</tspan></text>
+    <text x="76" y="272">Start my servers when I log in</text>
+    <text x="330" y="272" fill="#8b949e">(adds a Login Item)</text>
+    <text x="24" y="302" fill="#8b949e">↑↓ move · space select · enter confirm · q quit</text>
+    <text x="24" y="342"><tspan fill="#7ee787">$</tspan> rc</text>
+    <text x="24" y="366">Open from the Claude app, Code tab</text>
+    <text x="40" y="386" fill="#3fb950">✓</text>
+    <text x="60" y="386">home</text>
+    <text x="160" y="386">~</text>
+    <text x="330" y="386">online</text>
+    <text x="40" y="406" fill="#3fb950">✓</text>
+    <text x="60" y="406">api</text>
+    <text x="160" y="406">~/api</text>
+    <text x="330" y="406">online</text>
+    <text x="40" y="426" fill="#d29922">-</text>
+    <text x="60" y="426">notes</text>
+    <text x="160" y="426">~/notes</text>
+    <text x="330" y="426">restarting (1) · network unreachable</text>
+    <text x="24" y="456">Used recently, not served</text>
+    <text x="40" y="476">web</text>
+    <text x="160" y="476">~/web</text>
+    <text x="330" y="476" fill="#8b949e">used yesterday</text>
+    <text x="40" y="496" fill="#8b949e">(use "rc add &lt;name&gt;" to serve one)</text>
+    <text x="24" y="530"><tspan fill="#7ee787">$</tspan> rc add web</text>
+    <text x="24" y="550"><tspan fill="#3fb950">✓</tspan> web is ready in the Claude app, Code tab</text>
+  </g>
+</svg>
