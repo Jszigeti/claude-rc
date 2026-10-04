@@ -215,6 +215,17 @@ cmd_default() {
   list_all
 }
 
+cmd_rm() {
+  [[ $# -eq 1 ]] || { usage >&2; return 2; }
+  [[ $1 != home ]] || { echo "rc: home is your way in from the phone; edit $FOLDERS to remove it" >&2; return 1; }
+  path_of "$1" >/dev/null || { echo "rc: no server named $1" >&2; return 1; }
+  stop "$1"
+  grep -v "^$1=" "$FOLDERS" > "$FOLDERS.tmp" || true
+  mv "$FOLDERS.tmp" "$FOLDERS"
+  rm -f "$STATE/$1"
+  echo "✓ $1 removed"
+}
+
 main() {
   set -eu
   prepare

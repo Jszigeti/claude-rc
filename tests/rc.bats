@@ -81,3 +81,70 @@ load helpers
   grep -Eq "zz-a +~/zz-a +ok" <<< "$output"
   grep -q "~/zz-b" <<< "$output"
 }
+
+@test "rc add <name> restarts a served folder" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  run "$RC" add zz-a
+  [ "$status" -eq 0 ]
+  wait_for launches zz-a 2
+}
+
+@test "rc rm stops the server and forgets the folder" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  run "$RC" rm zz-a
+  [ "$status" -eq 0 ]
+  run grep -q zz-a "$HOME/.config/rc/folders"
+  [ "$status" -eq 1 ]
+  run env TMUX_TMPDIR="$HOME/.local/state/rc" tmux -L rc has-session -t =zz-a
+  [ "$status" -ne 0 ]
+}
+
+@test "rc rm refuses home and unknown names" {
+  mkdir -p "$HOME/.config/rc"
+  echo "home=$HOME" > "$HOME/.config/rc/folders"
+  run "$RC" rm home
+  [ "$status" -eq 1 ]
+  grep -q home "$HOME/.config/rc/folders"
+  run "$RC" rm zz-unknown
+  [ "$status" -eq 1 ]
+}
+
+@test "a server that exits is started again" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  touch "$FAKE_DIR/stop-zz-a"
+  wait_for launches zz-a 2
+}
+
+@test "an expired login notifies once, waits, then resumes" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  touch "$FAKE_DIR/logged-out" "$FAKE_DIR/stop-zz-a"
+  wait_for test -e "$HOME/.local/state/rc/login-notified"
+  sleep 3
+  launches zz-a 1
+  [ "$(wc -l < "$FAKE_DIR/notifications" | tr -d ' ')" = 1 ]
+  run "$RC"
+  grep -q "waiting for login" <<< "$output"
+  rm "$FAKE_DIR/logged-out"
+  wait_for launches zz-a 2
+  [ ! -e "$HOME/.local/state/rc/login-notified" ]
+}
+
+@test "a server that exited is not shown as ok while it waits to restart" {
+  export RC_PAUSE=30
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  touch "$FAKE_DIR/stop-zz-a"
+  wait_for test ! -e "$FAKE_DIR/stop-zz-a"
+  sleep 1
+  run "$RC"
+  grep -Eq "zz-a +~/zz-a +restarts 1" <<< "$output"
+}
