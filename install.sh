@@ -61,6 +61,8 @@ install_packages() {
     act sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
   elif command -v dnf >/dev/null; then
     act sudo dnf install -y "${missing[@]}"
+  elif command -v pacman >/dev/null; then
+    act sudo pacman -S --needed --noconfirm "${missing[@]}"
   else
     die "install ${missing[*]} with your distro's package manager, then rerun"
   fi
