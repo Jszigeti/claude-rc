@@ -190,3 +190,13 @@ load helpers
   run grep -q zz-upper "$HOME/.config/rc/folders"
   [ "$status" -eq 1 ]
 }
+
+@test "a newly served folder mentions its first session, a restart does not" {
+  mkdir -p "$HOME/zz-a"
+  run "$RC" add "$HOME/zz-a"
+  grep -q "It comes with a first session" <<< "$output"
+  wait_for launches zz-a 1
+  run "$RC" add zz-a
+  run grep -q "It comes with a first session" <<< "$output"
+  [ "$status" -eq 1 ]
+}

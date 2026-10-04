@@ -11,6 +11,7 @@ LABEL=dev.claude-rc.up
 PLIST=$HOME/Library/LaunchAgents/$LABEL.plist
 UNIT=$HOME/.config/systemd/user/claude-rc.service
 DRY=false
+NEW=false  # a folder served for the first time comes with a first session
 
 say() { printf '%s\n' "$@"; }
 
@@ -176,7 +177,7 @@ write_folders() { # keeps the name of a folder already served, names the new one
   for i in "${!LIST[@]}"; do
     [[ ${CHECKED[$i]} == x ]] || continue
     p=${LIST[$i]}
-    n=$(name_of_path "$p") || n=$(FOLDERS=$tmp free_name "$p")
+    n=$(name_of_path "$p") || { n=$(FOLDERS=$tmp free_name "$p"); NEW=true; }
     echo "$n=$p" >> "$tmp"
   done
   if $DRY; then say "[dry-run] $FOLDERS:"; sed 's/^/  /' "$tmp"; else mkdir -p "$CONF"; mv "$tmp" "$FOLDERS"; fi
@@ -276,8 +277,9 @@ report() {
   fi
   [[ $OS != wsl ]] || say "$(paint 33 !) To check: close your WSL terminals, wait 2 min, and see whether your folders stay online."
   ! grep -q '=/mnt/' "$FOLDERS" 2>/dev/null || say "$(paint 33 !) A served folder is under /mnt: WSL is slow there, keep your projects in your Linux home folder"
-  say "" "Done. Your folders are in the Claude app, Code tab." \
-    "  rc              see their state" \
+  say "" "Done. Your folders are in the Claude app, Code tab."
+  ! $NEW || say "New ones come with a first session: use it, or archive it once and it won't come back."
+  say "  rc              see their state" \
     "  rc add <name>   serve another folder"
 }
 

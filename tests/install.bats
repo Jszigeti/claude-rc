@@ -41,6 +41,14 @@ setup_file() { export RC_SOURCE="$BATS_TEST_DIRNAME/.." RC_SKIP_STARTER=1 RC_TTY
   [ "$(cat "$HOME/.config/rc/folders")" = "$(printf '%s\n' "home=$HOME" "zz-a=$HOME/zz-a")" ]
 }
 
+@test "only a newly served folder mentions its first session" {
+  run bash "$RC_SOURCE/install.sh"
+  grep -q "come with a first session" <<< "$output"
+  run bash "$RC_SOURCE/install.sh"
+  run grep -q "come with a first session" <<< "$output"
+  [ "$status" -eq 1 ]
+}
+
 @test "the report lists the served folders, and --uninstall keeps the folders file" {
   run bash "$RC_SOURCE/install.sh"
   [ "$status" -eq 0 ]

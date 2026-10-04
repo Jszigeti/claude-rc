@@ -182,16 +182,18 @@ find_folder() { # a path, a folder here or in ~, or a recent folder with that na
 
 cmd_add() {
   [[ $# -eq 1 ]] || { usage >&2; return 2; }
-  local name path
+  local name path new=""
   if path=$(path_of "$1"); then
     name=$1
   else
     path=$(find_folder "$1") || { echo "rc: no folder $1 here, in your home folder or among your recent folders" >&2; return 1; }
-    name=$(name_of_path "$path") || { name=$(free_name "$path"); echo "$name=$path" >> "$FOLDERS"; }
+    name=$(name_of_path "$path") || { name=$(free_name "$path"); echo "$name=$path" >> "$FOLDERS"; new=1; }
   fi
   stop "$name"
   start "$name" "$path"
   echo "✓ $name is ready in the Claude app, Code tab"
+  # the server pre-creates one session; archived once, it is not recreated on restart
+  [[ -z $new ]] || echo "  It comes with a first session: use it, or archive it once and it won't come back."
 }
 
 wait_network() {
