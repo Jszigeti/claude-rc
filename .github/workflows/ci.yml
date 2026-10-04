@@ -1,0 +1,87 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tools on macOS
+        if: runner.os == 'macOS'
+        run: brew install tmux bats-core shellcheck
+
+      - name: Tools on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y tmux bats shellcheck
+
+      - name: Lint
+        run: shellcheck -x -S warning rc install.sh tests/fake/*
+
+      - name: Tests
+        run: bats tests
+
+      - name: Install end to end with the fake claude
+        run: |
+          export PATH="$PWD/tests/fake:$PATH"
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo loginctl enable-linger "$USER"
+            export XDG_RUNTIME_DIR=/run/user/$(id -u)
+          fi
+          RC_SOURCE=$PWD bash install.sh < /dev/null
+
+      - name: The starter runs the servers
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            launchctl print "gui/$(id -u)/dev.claude-rc.up" | grep -E 'state|last exit'
+          else
+            XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user is-active claude-rc.service
+          fi
+          sleep 5
+          TMUX_TMPDIR=$HOME/.local/state/rc tmux -L rc ls
+
+  wsl:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: wsl-bash {0}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          wsl-shell-user: rc
+          additional-packages: tmux bats curl
+          wsl-conf: |
+            [boot]
+            systemd=true
+
+      - name: Restart WSL so that systemd starts
+        shell: pwsh
+        run: wsl --shutdown
+
+      - name: Copy the repo into the Linux filesystem
+        run: cp -r . ~/claude-rc && chmod +x ~/claude-rc/rc ~/claude-rc/tests/fake/*
+
+      - name: Tests
+        run: cd ~/claude-rc && bats tests
+
+      - name: Install end to end with the fake claude
+        run: |
+          cd ~/claude-rc
+          export PATH="$PWD/tests/fake:$PATH"
+          # the WSL console gives a real /dev/tty: no keyboard here, keep the defaults
+          RC_TTY=/nonexistent RC_SOURCE=$PWD bash install.sh < /dev/null
+
+      - name: The starter runs the servers
+        run: |
+          systemctl --user is-active claude-rc.service
+          sleep 5
+          TMUX_TMPDIR=$HOME/.local/state/rc tmux -L rc ls
