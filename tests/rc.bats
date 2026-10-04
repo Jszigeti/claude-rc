@@ -58,3 +58,26 @@ load helpers
   wait_for launches "$name" 1
   grep -qx "$name=$long" "$HOME/.config/rc/folders"
 }
+
+@test "rc starts the missing servers and leaves running ones alone" {
+  mkdir -p "$HOME/.config/rc" "$HOME/zz-a"
+  echo "zz-a=$HOME/zz-a" > "$HOME/.config/rc/folders"
+  run "$RC"
+  [ "$status" -eq 0 ]
+  wait_for launches zz-a 1
+  run "$RC"
+  [ "$status" -eq 0 ]
+  sleep 1
+  launches zz-a 1
+}
+
+@test "rc lists a connected server as ok and suggests candidates" {
+  mkdir -p "$HOME/zz-a" "$HOME/zz-b"
+  history "$HOME/zz-b" 202601010000
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  sleep 1
+  run "$RC"
+  grep -Eq "zz-a +~/zz-a +ok" <<< "$output"
+  grep -q "~/zz-b" <<< "$output"
+}

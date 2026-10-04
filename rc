@@ -181,6 +181,40 @@ cmd_add() {
   echo "✓ $name served from $(short "$path")"
 }
 
+wait_network() {
+  local i
+  for i in $(seq 30); do curl -s -o /dev/null --max-time 3 "$API" && return 0; sleep 5; done
+  echo "rc: $API unreachable, starting anyway" >&2
+}
+
+state_of() {
+  if ! running "$1"; then echo "stopped"
+  elif [[ -e $STATE/login-notified ]]; then echo "waiting for login"
+  elif alive "$1" && pane "$1" | grep -q Connected; then echo "ok"
+  else echo "restarts $(cat "$STATE/$1" 2>/dev/null || echo 0) · $(last_line "$1")"
+  fi
+}
+
+list_all() {
+  local l e p
+  echo "Served"
+  while IFS= read -r l; do
+    printf ' %-14s %-24s %s\n' "${l%%=*}" "$(short "${l#*=}")" "$(state_of "${l%%=*}")"
+  done < <(served)
+  echo "Candidates, serve with rc add <path>"
+  candidates | head -10 | while IFS=$'\t' read -r e p; do printf ' %-38s %s\n' "$(short "$p")" "$(age "$e")"; done
+}
+
+cmd_default() {
+  local l missing=()
+  while IFS= read -r l; do running "${l%%=*}" || missing+=("$l"); done < <(served)
+  if (( ${#missing[@]} )); then
+    wait_network
+    for l in "${missing[@]}"; do start "${l%%=*}" "${l#*=}"; sleep "$STAGGER"; done
+  fi
+  list_all
+}
+
 main() {
   set -eu
   prepare
