@@ -44,7 +44,7 @@ setup_file() { export RC_SOURCE="$BATS_TEST_DIRNAME/.." RC_SKIP_STARTER=1 RC_TTY
 @test "the report lists the served folders, and --uninstall keeps the folders file" {
   run bash "$RC_SOURCE/install.sh"
   [ "$status" -eq 0 ]
-  grep -q Served <<< "$output"
+  grep -q "Open from the Claude app" <<< "$output"
   run bash "$RC_SOURCE/install.sh" --uninstall
   [ "$status" -eq 0 ]
   [ ! -e "$HOME/.local/bin/rc" ]

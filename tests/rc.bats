@@ -64,6 +64,7 @@ load helpers
   echo "zz-a=$HOME/zz-a" > "$HOME/.config/rc/folders"
   run "$RC"
   [ "$status" -eq 0 ]
+  grep -q "Starting zz-a…" <<< "$output"
   wait_for launches zz-a 1
   run "$RC"
   [ "$status" -eq 0 ]
@@ -78,8 +79,9 @@ load helpers
   wait_for launches zz-a 1
   sleep 1
   run "$RC"
-  grep -Eq "zz-a +~/zz-a +ok" <<< "$output"
-  grep -q "~/zz-b" <<< "$output"
+  grep -Eq "✓ zz-a +~/zz-a +online" <<< "$output"
+  grep -Eq "~/zz-b +used" <<< "$output"
+  grep -q '(use "rc add <path>" to serve one)' <<< "$output"
 }
 
 @test "rc add <name> restarts a served folder" {
@@ -131,7 +133,8 @@ load helpers
   launches zz-a 1
   [ "$(wc -l < "$FAKE_DIR/notifications" | tr -d ' ')" = 1 ]
   run "$RC"
-  grep -q "waiting for login" <<< "$output"
+  grep -q "Claude is logged out" <<< "$output"
+  grep -q "claude auth login" <<< "$output"
   rm "$FAKE_DIR/logged-out"
   wait_for launches zz-a 2
   [ ! -e "$HOME/.local/state/rc/login-notified" ]
@@ -146,5 +149,20 @@ load helpers
   wait_for test ! -e "$FAKE_DIR/stop-zz-a"
   sleep 1
   run "$RC"
-  grep -Eq "zz-a +~/zz-a +restarts 1" <<< "$output"
+  grep -Eq "\- zz-a +~/zz-a +restarting \(1\)" <<< "$output"
+}
+
+@test "rc says so when no folder is served yet" {
+  run "$RC"
+  [ "$status" -eq 0 ]
+  grep -q "No folder served yet" <<< "$output"
+}
+
+@test "a server waiting on an unknown question says so" {
+  mkdir -p "$HOME/zz-a"
+  touch "$FAKE_DIR/ask-other"
+  "$RC" add "$HOME/zz-a"
+  sleep 2
+  run "$RC"
+  grep -Eq "! zz-a +~/zz-a +waiting for an answer" <<< "$output"
 }

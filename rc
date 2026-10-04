@@ -16,6 +16,11 @@ export TMUX_TMPDIR=$STATE  # under /tmp, systemd-tmpfiles may purge the socket (
 
 t() { tmux -L rc -f "$CONF/tmux.conf" "$@"; }
 
+COLOR=false  # only for a human at a terminal (clig.dev, no-color.org); decided once, before any $(...)
+[[ -t 1 && -z ${NO_COLOR:-} && ${TERM:-} != dumb ]] && COLOR=true
+
+paint() { if $COLOR; then printf '\033[%sm%s\033[0m' "$1" "$2"; else printf '%s' "$2"; fi; }
+
 usage() { sed -n '2,5p' "$SELF" | sed 's/^# \{0,1\}//'; }
 
 prepare() {
@@ -97,7 +102,8 @@ candidates() { # "epoch<TAB>path": Claude Code history under ~ first, then git r
 age() {
   local s
   s=$(( $(date +%s) - $1 ))
-  if (( s < 3600 )); then echo "$((s / 60)) min ago"
+  if (( s < 60 )); then echo "just now"
+  elif (( s < 3600 )); then echo "$((s / 60)) min ago"
   elif (( s < 86400 )); then echo "$((s / 3600)) h ago"
   elif (( s < 172800 )); then echo "yesterday"
   else echo "$((s / 86400)) d ago"
@@ -178,7 +184,7 @@ cmd_add() {
   fi
   stop "$name"
   start "$name" "$path"
-  echo "✓ $name served from $(short "$path")"
+  echo "✓ $name served from $(short "$path"), open it from the Claude app"
 }
 
 wait_network() {
@@ -187,30 +193,44 @@ wait_network() {
   echo "rc: $API unreachable, starting anyway" >&2
 }
 
-state_of() {
-  if ! running "$1"; then echo "stopped"
-  elif [[ -e $STATE/login-notified ]]; then echo "waiting for login"
-  elif alive "$1" && pane "$1" | grep -q Connected; then echo "ok"
-  else echo "restarts $(cat "$STATE/$1" 2>/dev/null || echo 0) · $(last_line "$1")"
+state_of() { # a glyph, then the state in words; the screen only tells a pending question apart
+  if ! running "$1"; then echo "$(paint 31 ×) stopped"
+  elif ! alive "$1"; then echo "$(paint 33 -) restarting ($(cat "$STATE/$1" 2>/dev/null || echo 0)) · $(last_line "$1" | cut -c1-40)"
+  elif last_line "$1" | grep -qE '\[y/N\] *$|\(y/n\) *$'; then echo "$(paint 33 !) waiting for an answer · $(last_line "$1" | cut -c1-40)"
+  else echo "$(paint 32 ✓) online"
   fi
 }
 
 list_all() {
-  local l e p
-  echo "Served"
-  while IFS= read -r l; do
-    printf ' %-14s %-24s %s\n' "${l%%=*}" "$(short "${l#*=}")" "$(state_of "${l%%=*}")"
-  done < <(served)
-  echo "Candidates, serve with rc add <path>"
-  candidates | head -10 | while IFS=$'\t' read -r e p; do printf ' %-38s %s\n' "$(short "$p")" "$(age "$e")"; done
+  local l e p s
+  if [[ -e $STATE/login-notified ]]; then
+    printf 'Claude is logged out. Every server is waiting.\nLog in with: claude auth login\n'
+    return 0
+  fi
+  if [[ -n $(served) ]]; then
+    echo "Open from the Claude app, Code tab"
+    while IFS= read -r l; do
+      s=$(state_of "${l%%=*}")
+      printf '  %s %-12s %-24s %s\n' "${s%% *}" "${l%%=*}" "$(short "${l#*=}")" "${s#* }"
+    done < <(served)
+  else
+    echo "No folder served yet."
+  fi
+  l=$(candidates | head -5)
+  [[ -n $l ]] || return 0
+  printf '\nUsed recently, not served\n'
+  while IFS=$'\t' read -r e p; do printf '  %-36s used %s\n' "$(short "$p")" "$(age "$e")"; done <<< "$l"
+  echo '  (use "rc add <path>" to serve one)'
 }
 
 cmd_default() {
   local l missing=()
   while IFS= read -r l; do running "${l%%=*}" || missing+=("$l"); done < <(served)
   if (( ${#missing[@]} )); then
+    printf 'Starting %s…\n' "$(printf '%s\n' "${missing[@]%%=*}" | paste -sd, - | sed 's/,/, /g')"
     wait_network
     for l in "${missing[@]}"; do start "${l%%=*}" "${l#*=}"; sleep "$STAGGER"; done
+    echo
   fi
   list_all
 }
