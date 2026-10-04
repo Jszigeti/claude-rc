@@ -162,7 +162,10 @@ choose_folders() { # fills LIST, CHECKED and AT_LOGIN from arrows and space on $
             IFS= read -r -u 3 p || p=""
             [[ -z $KEYS ]] || stty -icanon -echo min 1 <&3
             drawn=$((drawn + 1))
-            if p=$(cd "${p/#\~/$HOME}" 2>/dev/null && pwd); then LIST+=("$p"); CHECKED+=(x); ages+=("just added"); fi
+            if p=$(cd "${p/#\~/$HOME}" 2>/dev/null && pwd); then
+              for i in "${!LIST[@]}"; do [[ ${LIST[$i]} != "$p" ]] || { CHECKED[$i]=x; p=""; }; done  # already listed: check it
+              [[ -z $p ]] || { LIST+=("$p"); CHECKED+=(x); ages+=("just added"); }
+            fi
             ;;
           login) if [[ $AT_LOGIN == x ]]; then AT_LOGIN=" "; else AT_LOGIN=x; fi ;;
           *) i=${rows[$cur]}; if [[ ${CHECKED[$i]} == x ]]; then CHECKED[$i]=" "; else CHECKED[$i]=x; fi ;;
