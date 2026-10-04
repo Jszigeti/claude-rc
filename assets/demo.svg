@@ -8,7 +8,7 @@
   <text x="380" y="21" text-anchor="middle" fill="#8b949e" font-size="12">rc</text>
 
   <g fill="#c9d1d9">
-    <text x="24" y="62"><tspan fill="#7ee787">$</tspan> curl -fsSL https://raw.githubusercontent.com/Jszigeti/claude-rc/v0.1.0/install.sh | bash</text>
+    <text x="24" y="62" font-size="12"><tspan fill="#7ee787">$</tspan> curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/install.sh | bash</text>
     <text x="24" y="92">rc · install on macOS</text>
     <text x="24" y="122"><tspan fill="#39c5cf">◆</tspan> Which folders should the Claude app reach?</text>
     <text x="56" y="142"><tspan fill="#3fb950">◼</tspan></text>

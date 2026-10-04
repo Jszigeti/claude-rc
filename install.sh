@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # install.sh: installs rc and serves the folders you pick over Claude Code Remote Control.
-#   curl -fsSL https://raw.githubusercontent.com/Jszigeti/claude-rc/v0.1.0/install.sh | bash
+#   curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/install.sh | bash
 #   bash install.sh [--dry-run | --uninstall]
 
-VERSION=v0.1.0
+VERSION=v0.1.5
 SOURCE=${RC_SOURCE:-https://raw.githubusercontent.com/Jszigeti/claude-rc/$VERSION}  # a local folder in tests
 TTY=${RC_TTY:-/dev/tty}  # with curl | bash, stdin is the script itself
 BIN=$HOME/.local/bin

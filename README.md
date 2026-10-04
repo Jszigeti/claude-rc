@@ -19,7 +19,7 @@ rc keeps one server per project you pick, starts them at login and restarts them
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Jszigeti/claude-rc/v0.1.0/install.sh | bash
+curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/install.sh | bash
 ```
 
 You need Claude Code logged in with a claude.ai account (Pro, Max, Team or Enterprise). The installer adds tmux if it is missing (Homebrew, apt, dnf or pacman), then asks two things on one screen: which folders the Claude app should reach, and whether your servers start on their own when you log in.
@@ -52,7 +52,7 @@ rc answers `y` to the trust prompt of the folders you serve, and only those: any
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Jszigeti/claude-rc/v0.1.0/install.sh | bash -s -- --uninstall
+curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/install.sh | bash -s -- --uninstall
 ```
 
 Your folders stay listed in `~/.config/rc/folders`.
