@@ -52,6 +52,60 @@ free_name() {
   echo "$n"
 }
 
+# --- candidates: folders worth serving, newest first
+
+decode() { # rebuild a path from its ~/.claude/projects name, where every non-alphanumeric became -
+  local dir=$1 rest=$2 e enc
+  [[ -z $rest ]] && { echo "$dir"; return 0; }
+  for e in "$dir"/* "$dir"/.[!.]*; do
+    [[ -d $e ]] || continue
+    enc=${e##*/}
+    enc=${enc//[^A-Za-z0-9]/-}
+    if [[ $rest == "$enc" ]]; then decode "$e" "" && return 0
+    elif [[ $rest == "$enc"-* ]]; then decode "$e" "${rest#"$enc"-}" && return 0
+    fi
+  done
+  return 1
+}
+
+excluded() { # $1: a folder name right under ~
+  local d
+  for d in "${EXCLUDED[@]}"; do [[ $1 == "$d" ]] && return 0; done
+  return 1
+}
+
+candidates() { # "epoch<TAB>path": Claude Code history under ~ first, then git repos right under ~
+  local d enc top f p e h=${HOME//[^A-Za-z0-9]/-}
+  {
+    for d in "$HOME"/.claude/projects/*/; do
+      enc=$(basename "$d")
+      [[ $enc == "$h" || $enc == "$h"-* ]] || continue
+      top=${enc#"$h"-}
+      excluded "${top%%-*}" && continue
+      p=$(decode "" "${enc#-}") || continue
+      f=$(ls -t "$d" | head -1)
+      [[ -n $f ]] && printf '1\t%s\t%s\n' "$(date -r "$d$f" +%s)" "$p"
+    done
+    for d in "$HOME"/*/; do
+      p=${d%/}
+      excluded "${p##*/}" || [[ ! -d $p/.git ]] || printf '2\t%s\t%s\n' "$(git -C "$p" log -1 --format=%ct 2>/dev/null || echo 0)" "$p"
+    done
+  } | sort -t $'\t' -k1,1n -k2,2nr | awk -F '\t' '!seen[$3]++ { print $2 "\t" $3 }' |
+    while IFS=$'\t' read -r e p; do name_of_path "$p" >/dev/null || printf '%s\t%s\n' "$e" "$p"; done
+}
+
+age() {
+  local s
+  s=$(( $(date +%s) - $1 ))
+  if (( s < 3600 )); then echo "$((s / 60)) min ago"
+  elif (( s < 86400 )); then echo "$((s / 3600)) h ago"
+  elif (( s < 172800 )); then echo "yesterday"
+  else echo "$((s / 86400)) d ago"
+  fi
+}
+
+short() { [[ $1 == "$HOME" || $1 == "$HOME/"* ]] && echo "~${1#"$HOME"}" || echo "$1"; }
+
 main() {
   set -eu
   prepare
