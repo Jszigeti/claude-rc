@@ -46,3 +46,15 @@ load helpers
   [ "$(short /opt/x)" = "/opt/x" ]
   [ "$(short "${HOME}2/x")" = "${HOME}2/x" ]
 }
+
+@test "rc add serves a path longer than the screen and answers its trust prompt" {
+  long="$HOME/$(printf 'zz-a-folder-with-a-very-long-name-%.0s' 1 2 3 4 5 6)"
+  mkdir -p "$long"
+  touch "$FAKE_DIR/ask-trust"
+  run "$RC" add "$long"
+  [ "$status" -eq 0 ]
+  name=$(basename "$long")
+  wait_for test -s "$FAKE_DIR/trusted-$name"
+  wait_for launches "$name" 1
+  grep -qx "$name=$long" "$HOME/.config/rc/folders"
+}

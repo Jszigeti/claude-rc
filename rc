@@ -106,6 +106,81 @@ age() {
 
 short() { [[ $1 == "$HOME" || $1 == "$HOME/"* ]] && echo "~${1#"$HOME"}" || echo "$1"; }
 
+# --- servers: one tmux session per folder, running serve_loop
+
+running() { t has-session -t "=$1" 2>/dev/null; }
+
+pane() { t capture-pane -pJ -t "=$1:" 2>/dev/null; }
+
+last_line() { pane "$1" | grep -v '^[[:space:]]*$' | tail -1; }
+
+start() { # a session that already exists was started by a concurrent rc
+  t new-session -d -s "$1" "$SELF" _loop "$1" "$2" 2>/dev/null || true
+}
+
+alive() { pgrep -f "remote-control --name $1 " >/dev/null; }
+
+stop() { # claude refuses to start while the previous server of the same folder still runs
+  local i
+  t kill-session -t "=$1" 2>/dev/null || true
+  for i in $(seq 50); do alive "$1" || return 0; sleep 0.2; done
+}
+
+logged_in() { # Remote Control needs a claude.ai login, not an API key
+  local out re='"authMethod": *"claude\.ai"'
+  out=$(claude auth status 2>/dev/null) && [[ $out =~ $re ]]
+}
+
+notify() {
+  if command -v osascript >/dev/null; then osascript -e "display notification \"$1\" with title \"rc\""
+  elif command -v notify-send >/dev/null; then notify-send rc "$1"
+  fi
+  return 0
+}
+
+answer_prompts() { # answers y to the trust and consent prompts until connected; only listed folders get a serve_loop
+  until pane "$1" | grep -q Connected; do
+    last_line "$1" | grep -qE 'Trust .*\[y/N\] *$|Enable Remote Control\? \(y/n\) *$' &&
+      t send-keys -t "=$1:" y Enter
+    sleep 1
+  done
+}
+
+serve_loop() {
+  local name=$1 restarts=0
+  cd "$2"
+  while :; do
+    if logged_in; then
+      rm -f "$STATE/login-notified"
+      clear  # the previous run's pane would read as connected
+      answer_prompts "$name" &
+      claude remote-control --name "$name" --spawn same-dir || true
+      kill "$!" 2>/dev/null || true
+      restarts=$((restarts + 1))
+      echo "$restarts" > "$STATE/$name"
+    elif [[ ! -e $STATE/login-notified ]]; then
+      : > "$STATE/login-notified"
+      if command -v claude >/dev/null; then notify "Claude login expired: run claude auth login"
+      else notify "claude is not in rc's PATH: rerun the installer"; fi
+    fi
+    sleep "$PAUSE"
+  done
+}
+
+cmd_add() {
+  [[ $# -eq 1 ]] || { usage >&2; return 2; }
+  local name path
+  if path=$(path_of "$1"); then
+    name=$1
+  else
+    path=$(cd "$1" 2>/dev/null && pwd) || { echo "rc: no such folder: $1" >&2; return 1; }
+    name=$(name_of_path "$path") || { name=$(free_name "$path"); echo "$name=$path" >> "$FOLDERS"; }
+  fi
+  stop "$name"
+  start "$name" "$path"
+  echo "✓ $name served from $(short "$path")"
+}
+
 main() {
   set -eu
   prepare
