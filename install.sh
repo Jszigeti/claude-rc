@@ -3,7 +3,7 @@
 #   curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/install.sh | bash
 #   bash install.sh [--dry-run | --uninstall]
 
-VERSION=v0.1.5
+VERSION=v0.1.6
 SOURCE=${RC_SOURCE:-https://raw.githubusercontent.com/Jszigeti/claude-rc/$VERSION}  # a local folder in tests
 TTY=${RC_TTY:-/dev/tty}  # with curl | bash, stdin is the script itself
 BIN=$HOME/.local/bin
