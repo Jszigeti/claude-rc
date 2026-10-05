@@ -229,6 +229,7 @@ state_of() { # a glyph, then the state in words; the screen only tells a pending
   if ! running "$1"; then echo "$(paint 31 ×) stopped"
   elif ! alive "$1"; then echo "$(paint 33 -) restarting ($(cat "$STATE/$1" 2>/dev/null || echo 0)) · $(last_line "$1" | cut -c1-40)"
   elif last_line "$1" | grep -qE '\[y/N\] *$|\(y/n\) *$'; then echo "$(paint 33 !) waiting for an answer · $(last_line "$1" | cut -c1-40)"
+  elif pane "$1" | grep -q '· Reconnecting ·'; then echo "$(paint 33 -) offline, reconnecting"
   else echo "$(paint 32 ✓) online"
   fi
 }

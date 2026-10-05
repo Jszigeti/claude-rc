@@ -260,3 +260,13 @@ load helpers
   TMUX_TMPDIR=$HOME/.local/state/rc tmux -L rc has-session -t =zz-a
 }
 
+@test "a server that lost the network is not shown as online" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  touch "$FAKE_DIR/offline-zz-a"
+  sleep 1
+  run "$RC"
+  run grep -q "zz-a.*online" <<< "$output"
+  [ "$status" -eq 1 ]
+}
