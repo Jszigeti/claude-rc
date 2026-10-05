@@ -266,7 +266,7 @@ WantedBy=default.target"
   act loginctl enable-linger "$(id -un)" 2>/dev/null || say "⚠ linger refused: the servers start at your next login, not at boot"
 }
 
-starter_wsl() { # unverified: no WSL in CI
+starter_wsl() { # the Windows scheduled task is not exercised in CI
   if [[ ! -d /run/systemd/system ]]; then
     grep -qs '^systemd=true' /etc/wsl.conf || act sudo sh -c 'printf "\n[boot]\nsystemd=true\n" >> /etc/wsl.conf'
     die "systemd is now enabled. In PowerShell: wsl.exe --shutdown, then rerun this installer"
