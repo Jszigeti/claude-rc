@@ -24,6 +24,8 @@ curl -fsSL https://github.com/Jszigeti/claude-rc/releases/latest/download/instal
 
 You need Claude Code logged in with a claude.ai account (Pro, Max, Team or Enterprise). The installer adds tmux if it is missing (Homebrew, apt, dnf or pacman), then asks two things on one screen: which folders the Claude app should reach, and whether your servers start on their own when you log in.
 
+To update, run the install line again: your served folders stay checked, and each server picks up the new rc at its next restart, at login or with `rc add <name>` from another folder.
+
 Piping curl into bash deserves a look first: [install.sh](install.sh) is the whole installer, and ending the line with `| bash -s -- --dry-run` shows what it would do without changing anything.
 
 On a server, log in once over SSH with `claude auth login`: open the link it prints on any device, then paste the code back.
