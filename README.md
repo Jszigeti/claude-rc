@@ -38,6 +38,8 @@ From the app, in a session, type the exact command:
 | `rc add <folder or name>` | serves a folder (a path, or just its name, like `rc add web`), or restarts a served one |
 | `rc rm <name or folder>` | stops a server and forgets its folder |
 
+Back at the computer, `rc resume` lists the sessions started from the app, which `claude --resume` leaves out, and resumes the one you pick with the arrows in the terminal.
+
 Each served folder shows up in the app with a first session that Claude Code creates for it. Use it like any other, or archive it once and it won't come back. Either way, the sessions you open keep surviving restarts.
 
 rc answers `y` to the trust prompt of the folders you serve, and only those: anyone with access to your Claude account can run commands there.

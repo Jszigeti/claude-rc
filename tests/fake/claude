@@ -33,6 +33,9 @@ case "$1 ${2:-}" in
     rm -f "$D/stop-$name"
     exit 3
     ;;
+  "--resume "*)
+    echo "$PWD $2" > "$D/resumed"
+    ;;
   *)
     echo "fake claude: $*" >&2
     exit 2

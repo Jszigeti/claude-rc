@@ -210,3 +210,31 @@ load helpers
   wait_for test -s "$FAKE_DIR/signals-zz-a"
   wait_for launches zz-a 2
 }
+
+@test "resume lists the app's sessions of served folders and resumes the chosen one in its folder" {
+  mkdir -p "$HOME/zz-a" "$HOME/zz-other" "$HOME/.config/rc"
+  echo "zz-a=$HOME/zz-a" > "$HOME/.config/rc/folders"
+  d=$HOME/.claude/projects/$(enc "$HOME/zz-a")
+  mkdir -p "$d" "$HOME/.claude/projects/$(enc "$HOME/zz-other")"
+  app='{"turnOrigin":"human","entrypoint":"sdk-cli"}'
+  printf '%s\n' "$app" '{"customTitle":"old title"}' '{"customTitle":"older run"}' > "$d/id-older.jsonl"
+  printf '%s\n' "$app" '{"lastPrompt":"newer run"}' > "$d/id-newer.jsonl"
+  printf '%s\n' '{"turnOrigin":"human","entrypoint":"cli"}' '{"customTitle":"from a terminal"}' > "$d/id-terminal.jsonl"
+  printf '%s\n' '{"turnOrigin":"sdk","entrypoint":"sdk-cli"}' '{"customTitle":"a script"}' > "$d/id-script.jsonl"
+  printf '%s\n' "$app" '{"customTitle":"not served"}' > "$HOME/.claude/projects/$(enc "$HOME/zz-other")/id-other.jsonl"
+  touch -t 202601010000 "$d/id-older.jsonl"
+  printf '\033[B\n' > "$HOME/keys"  # down, enter: the second newest
+  RC_TTY=$HOME/keys run "$RC" resume
+  [ "$status" -eq 0 ]
+  [ "$(cat "$FAKE_DIR/resumed")" = "$HOME/zz-a id-older" ]
+  grep -q "newer run" <<< "$output"
+  grep -q "older run" <<< "$output"
+  run grep -qE "from a terminal|a script|not served|old title" <<< "$output"
+  [ "$status" -eq 1 ]
+}
+
+@test "resume says so when the app started none" {
+  run "$RC" resume
+  [ "$status" -eq 0 ]
+  grep -q "No session started from the Claude app" <<< "$output"
+}
