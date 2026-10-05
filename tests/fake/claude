@@ -28,7 +28,7 @@ case "$1 ${2:-}" in
     trap 'echo term >> "$D/signals-$name"; exit 143' TERM
     until [[ -e $D/stop-$name ]]; do
       # a command typed in one of this server's sessions: a child, in the pane's process group
-      [[ ! -e $D/run-$name ]] || { bash "$D/run-$name" & rm "$D/run-$name"; }
+      [[ ! -e $D/run-$name ]] || { mv "$D/run-$name" "$D/ran-$name"; bash "$D/ran-$name" & }
       if [[ -e $D/offline-$name && -z ${shown:-} ]]; then echo "·|· Reconnecting · retrying in 2.4s · disconnected 0s"; shown=1; fi
       sleep 0.2
     done
