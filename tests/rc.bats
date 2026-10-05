@@ -238,3 +238,25 @@ load helpers
   [ "$status" -eq 0 ]
   grep -q "No session started from the Claude app" <<< "$output"
 }
+
+@test "rc add from a session of its own server refuses instead of leaving it stopped" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  echo "\"$RC\" add zz-a > \"$FAKE_DIR/self\" 2>&1; echo \"exit=\$?\" >> \"$FAKE_DIR/self\"" > "$FAKE_DIR/run-zz-a"
+  wait_for grep -q exit= "$FAKE_DIR/self"
+  grep -q "exit=1" "$FAKE_DIR/self"
+  launches zz-a 1
+  TMUX_TMPDIR=$HOME/.local/state/rc tmux -L rc has-session -t =zz-a
+}
+
+@test "rc rm from a session of its own server refuses instead of stopping it half way" {
+  mkdir -p "$HOME/zz-a"
+  "$RC" add "$HOME/zz-a"
+  wait_for launches zz-a 1
+  echo "\"$RC\" rm zz-a > \"$FAKE_DIR/self\" 2>&1; echo \"exit=\$?\" >> \"$FAKE_DIR/self\"" > "$FAKE_DIR/run-zz-a"
+  wait_for grep -q exit= "$FAKE_DIR/self"
+  grep -q "exit=1" "$FAKE_DIR/self"
+  TMUX_TMPDIR=$HOME/.local/state/rc tmux -L rc has-session -t =zz-a
+}
+

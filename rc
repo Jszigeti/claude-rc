@@ -171,6 +171,7 @@ guard() { # a server that gives up after 10 min offline drops its environment an
 serve_loop() {
   local name=$1 restarts=0
   cd "$2"
+  export RC_SERVER=$name  # inherited by the sessions it spawns: see own_server
   while :; do
     if logged_in; then
       rm -f "$STATE/login-notified"
@@ -197,6 +198,10 @@ find_folder() { # a path, a folder here or in ~, or a recent folder with that na
   return 1
 }
 
+own_server() { # stopping the server that runs this session kills rc before it can start it again
+  [[ ${RC_SERVER:-} != "$1" ]] || { echo "rc: $1 runs this session: restart it from another served folder" >&2; return 1; }
+}
+
 cmd_add() {
   [[ $# -eq 1 ]] || { usage >&2; return 2; }
   local name path new=""
@@ -206,6 +211,7 @@ cmd_add() {
     path=$(find_folder "$1") || { echo "rc: no folder $1 here, in your home folder or among your recent folders" >&2; return 1; }
     name=$(name_of_path "$path") || { name=$(free_name "$path"); echo "$name=$path" >> "$FOLDERS"; new=1; }
   fi
+  own_server "$name" || return 1
   stop "$name"
   start "$name" "$path"
   echo "✓ $name is ready in the Claude app, Code tab"
@@ -268,6 +274,7 @@ cmd_rm() {
     path=$(find_folder "$1") && name=$(name_of_path "$path") || { echo "rc: no server for $1" >&2; return 1; }
   fi
   [[ $name != home ]] || { echo "rc: home is your way in from the phone; edit $FOLDERS to remove it" >&2; return 1; }
+  own_server "$name" || return 1
   stop "$name"
   grep -v "^$name=" "$FOLDERS" > "$FOLDERS.tmp" || true
   mv "$FOLDERS.tmp" "$FOLDERS"
