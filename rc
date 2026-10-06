@@ -276,7 +276,6 @@ cmd_rm() {
   if ! path_of "$name" >/dev/null; then  # a folder name or path, like rc add
     path=$(find_folder "$1") && name=$(name_of_path "$path") || { echo "rc: no server for $1" >&2; return 1; }
   fi
-  [[ $name != home ]] || { echo "rc: home is your way in from the phone; edit $FOLDERS to remove it" >&2; return 1; }
   own_server "$name" || return 1
   stop "$name"
   grep -v "^$name=" "$FOLDERS" > "$FOLDERS.tmp" || true

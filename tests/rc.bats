@@ -105,12 +105,13 @@ load helpers
   [ "$status" -ne 0 ]
 }
 
-@test "rc rm refuses home and unknown names" {
-  mkdir -p "$HOME/.config/rc"
-  echo "home=$HOME" > "$HOME/.config/rc/folders"
+@test "rc rm removes any served folder, home included, and refuses unknown names" {
+  mkdir -p "$HOME/x/home"
+  "$RC" add "$HOME/x/home"
   run "$RC" rm home
+  [ "$status" -eq 0 ]
+  run grep -q home "$HOME/.config/rc/folders"
   [ "$status" -eq 1 ]
-  grep -q home "$HOME/.config/rc/folders"
   run "$RC" rm zz-unknown
   [ "$status" -eq 1 ]
 }
