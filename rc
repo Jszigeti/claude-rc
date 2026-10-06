@@ -49,8 +49,10 @@ name_of_path() {
 }
 
 name_for() { # the name shown in the app: ~ is home, otherwise the folder name in lowercase with dashes
+  local n
   [[ $1 == "$HOME" ]] && { echo home; return; }
-  basename "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//'
+  n=$(basename "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//')
+  echo "${n:-folder}"  # a name without latin letters or digits, like 日本語
 }
 
 free_name() {

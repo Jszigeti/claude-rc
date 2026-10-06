@@ -270,3 +270,11 @@ load helpers
   run grep -q "zz-a.*online" <<< "$output"
   [ "$status" -eq 1 ]
 }
+
+@test "a folder name without latin letters or digits still gets a server name" {
+  mkdir -p "$HOME/日本語"
+  run "$RC" add "$HOME/日本語"
+  [ "$status" -eq 0 ]
+  run grep -q '^=' "$HOME/.config/rc/folders"
+  [ "$status" -eq 1 ]
+}
