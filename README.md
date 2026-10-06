@@ -44,7 +44,7 @@ Back at the computer, `rc resume` lists the sessions started from the app, which
 
 Each served folder shows up in the app with a first session that Claude Code creates for it. Use it like any other, or archive it once and it won't come back. Either way, the sessions you open keep surviving restarts.
 
-rc answers `y` to the trust prompt of the folders you serve, and only those: anyone with access to your Claude account can run commands there.
+rc answers `y` to the trust prompt of the folders you serve, and only those, and to the one-time Remote Control consent: anyone with access to your Claude account can run commands there.
 
 ## How it works
 
