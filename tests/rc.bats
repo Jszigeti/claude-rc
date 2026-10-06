@@ -278,3 +278,12 @@ load helpers
   run grep -q '^=' "$HOME/.config/rc/folders"
   [ "$status" -eq 1 ]
 }
+
+@test "rc add does not claim a server is ready, since it may still wait for a login" {
+  touch "$FAKE_DIR/logged-out"
+  mkdir -p "$HOME/zz-a"
+  run "$RC" add "$HOME/zz-a"
+  [ "$status" -eq 0 ]
+  run grep -q ready <<< "$output"
+  [ "$status" -eq 1 ]
+}

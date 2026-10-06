@@ -216,7 +216,7 @@ cmd_add() {
   own_server "$name" || return 1
   stop "$name"
   start "$name" "$path"
-  echo "✓ $name is ready in the Claude app, Code tab"
+  echo "✓ $name started: open it from the Claude app, Code tab"
   # the server pre-creates one session; archived once, it is not recreated on restart
   [[ -z $new ]] || echo "  It comes with a first session: use it, or archive it once and it won't come back."
 }
